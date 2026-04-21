@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <title>Web3 To'lov Tizimi</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; }
+        .card { border: 1px solid #ddd; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        input { padding: 10px; margin-top: 10px; width: 100%; border-radius: 5px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Sepolia Test To'lovi</h2>
+    <p id="walletAddress">Hamyon: Ulangan emas</p>
+    <input type="number" id="amount" placeholder="ETH miqdori (masalan: 0.01)">
+    <button onclick="makePayment()">To'lov qilish</button>
+    <p id="status"></p>
+</div>
+
+<script>
+    const contractAddress = "YOUR_DEPLOYED_CONTRACT_ADDRESS"; // Deploy qilingan manzilni bura yozing
+    const abi = [
+        "function deposit() public payable",
+        "function getBalance() public view returns (uint256)"
+    ];
+
+    async function makePayment() {
+        const status = document.getElementById('status');
+        const amount = document.getElementById('amount').value;
+
+        if (typeof window.ethereum !== 'undefined') {
+            try {
+                // 1. Provayder va Signerni olish
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+                
+                // 2. Foydalanuvchi manzilini ko'rsatish
+                const address = await signer.getAddress();
+                document.getElementById('walletAddress').innerText = `Hamyon: ${address}`;
+
+                // 3. Kontrakt bilan bog'lanish
+                const contract = new ethers.Contract(contractAddress, abi, signer);
+
+                status.innerText = "Tranzaksiya yuborilmoqda...";
+
+                // 4. To'lov funksiyasini chaqirish
+                const tx = await contract.deposit({
+                    value: ethers.parseEther(amount) // ETHni Wei formatiga o'tkazadi
+                });
+
+                status.innerText = "Tasdiqlanish kutilmoqda...";
+                await tx.wait();
+
+                status.innerText = "To'lov muvaffaqiyatli bajarildi!";
+                alert("Rahmat! To'lov qabul qilindi.");
+            } catch (error) {
+                console.error(error);
+                status.innerText = "Xatolik: " + error.reason;
+            }
+        } else {
+            alert("MetaMask o'rnatilmagan!");
+        }
+    }
+</script>
+
+</body>
+</html>
