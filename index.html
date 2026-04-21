@@ -2,67 +2,99 @@
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
-    <title>Web3 To'lov Tizimi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KARCHKOOT Web3 Payment</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; }
-        .card { border: 1px solid #ddd; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
-        input { padding: 10px; margin-top: 10px; width: 100%; border-radius: 5px; border: 1px solid #ccc; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        h2 { color: #333; margin-bottom: 20px; }
+        .status-box { background: #e8f0fe; padding: 10px; border-radius: 8px; font-size: 14px; color: #1967d2; margin-bottom: 20px; word-break: break-all; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; margin-top: 10px; }
+        .btn-pay { background-color: #28a745; color: white; }
+        .btn-pay:hover { background-color: #218838; }
+        .btn-connect { background-color: #007bff; color: white; }
+        .btn-admin { background-color: #6c757d; color: white; font-size: 12px; }
+        .balance { font-size: 18px; font-weight: bold; color: #d93025; margin: 15px 0; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>Sepolia Test To'lovi</h2>
-    <p id="walletAddress">Hamyon: Ulangan emas</p>
-    <input type="number" id="amount" placeholder="ETH miqdori (masalan: 0.01)">
-    <button onclick="makePayment()">To'lov qilish</button>
-    <p id="status"></p>
+<div class="container">
+    <h2>DLP Smart Payment</h2>
+    <div id="walletStatus" class="status-box">Hamyon ulanmagan</div>
+    
+    <div id="balanceDisplay" class="balance">Balans: 0 ETH</div>
+    
+    <input type="number" id="ethAmount" step="0.001" placeholder="ETH miqdori (masalan: 0.01)">
+    <button class="btn-pay" onclick="makePayment()">To'lov yuborish</button>
+    <button class="btn-connect" onclick="connectWallet()">Hamyonni ulash</button>
+    
+    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+    <button class="btn-admin" onclick="withdrawFunds()">Pulni yechish (Faqat Owner)</button>
+    <p id="txStatus" style="font-size: 12px; color: #666; margin-top: 10px;"></p>
 </div>
 
 <script>
-    const contractAddress = "YOUR_DEPLOYED_CONTRACT_ADDRESS"; // Deploy qilingan manzilni bura yozing
+    const contractAddress = "0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8";
     const abi = [
-        "function deposit() public payable",
-        "function getBalance() public view returns (uint256)"
+        {"inputs":[],"name":"deposit","outputs":[],"stateMutability":"payable","type":"function"},
+        {"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},
+        {"inputs":[],"name":"getBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+        {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
     ];
 
-    async function makePayment() {
-        const status = document.getElementById('status');
-        const amount = document.getElementById('amount').value;
+    let signer;
+    let contract;
 
-        if (typeof window.ethereum !== 'undefined') {
-            try {
-                // 1. Provayder va Signerni olish
-                const provider = new ethers.BrowserProvider(window.ethereum);
-                const signer = await provider.getSigner();
-                
-                // 2. Foydalanuvchi manzilini ko'rsatish
-                const address = await signer.getAddress();
-                document.getElementById('walletAddress').innerText = `Hamyon: ${address}`;
-
-                // 3. Kontrakt bilan bog'lanish
-                const contract = new ethers.Contract(contractAddress, abi, signer);
-
-                status.innerText = "Tranzaksiya yuborilmoqda...";
-
-                // 4. To'lov funksiyasini chaqirish
-                const tx = await contract.deposit({
-                    value: ethers.parseEther(amount) // ETHni Wei formatiga o'tkazadi
-                });
-
-                status.innerText = "Tasdiqlanish kutilmoqda...";
-                await tx.wait();
-
-                status.innerText = "To'lov muvaffaqiyatli bajarildi!";
-                alert("Rahmat! To'lov qabul qilindi.");
-            } catch (error) {
-                console.error(error);
-                status.innerText = "Xatolik: " + error.reason;
-            }
+    async function connectWallet() {
+        if (window.ethereum) {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            await provider.send("eth_requestAccounts", []);
+            signer = await provider.getSigner();
+            contract = new ethers.Contract(contractAddress, abi, signer);
+            
+            const address = await signer.getAddress();
+            document.getElementById('walletStatus').innerText = "Ulangan: " + address;
+            updateBalance();
         } else {
-            alert("MetaMask o'rnatilmagan!");
+            alert("Iltimos, MetaMask o'rnating!");
+        }
+    }
+
+    async function updateBalance() {
+        if (!contract) return;
+        const balance = await contract.getBalance();
+        document.getElementById('balanceDisplay').innerText = `Balans: ${ethers.formatEther(balance)} ETH`;
+    }
+
+    async function makePayment() {
+        if (!contract) await connectWallet();
+        const amount = document.getElementById('ethAmount').value;
+        const status = document.getElementById('txStatus');
+
+        try {
+            status.innerText = "Tranzaksiya yuborilmoqda...";
+            const tx = await contract.deposit({ value: ethers.parseEther(amount) });
+            await tx.wait();
+            status.innerText = "Muvaffaqiyatli! Blok: " + tx.hash;
+            updateBalance();
+        } catch (error) {
+            status.innerText = "Xatolik yuz berdi.";
+            console.error(error);
+        }
+    }
+
+    async function withdrawFunds() {
+        if (!contract) await connectWallet();
+        try {
+            const tx = await contract.withdraw();
+            await tx.wait();
+            alert("Mablag'lar hamyoningizga o'tkazildi!");
+            updateBalance();
+        } catch (error) {
+            alert("Faqat kontrakt egasi pul yechishi mumkin!");
         }
     }
 </script>
